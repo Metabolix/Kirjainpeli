@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fi"><!-- NOTICE: Lisätty kieli. -->
+<head>
+  <meta charset="UTF-8"><!-- NOTICE: Lisätty merkistö. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- NOTICE: Lisätty mobiiliruudulle sovitus. -->
+  <title>Kirjainpeli</title>
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      user-select: none; /* NOTICE: Lisätty valinnan esto. */
+    }
+    #game-area {
+      /* NOTICE: Säädetty kokoa, poistettu turhia tyylejä. */
+      min-height: 20rem;
+      width: 90%;
+      max-width: 40rem;
+      border: 0.5rem solid;
+      font-size: 36px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.25s; /* Sulava reunavärin vaihto */
+    }
+
+    #game-area.success {
+      border-color: forestgreen; /* Metsänvihreä reunaväri */
+    }
+
+    #game-area.fail {
+      border-color: crimson; /* Verenpunainen reunaväri */
+    }
+
+    #game-area div {
+      position: absolute;
+      /* NOTICE: Vaihdettu fontti, jotta I ja l erottuvat, ja säädetty palikat tasakokoisiksi. */
+      font-family: serif;
+      width: 1em;
+      text-align: center;
+    }
+
+    #new-game-btn {
+      font-size: 24px; /* Fonttikoko */
+      padding: 10px 20px; /* Napin sisäväli */
+      background-color: #4CAF50; /* Taustaväri */
+      color: #fff; /* Tekstin väri */
+      border: none; /* Poista reunus */
+      border-radius: 5px; /* Pyöristä nurkat */
+      cursor: pointer; /* Osoitinkursori */
+      margin: 1em; /* NOTICE: Lisätty marginaali. */
+    }
+
+    #new-game-btn:hover {
+      background-color: #45a049; /* Vaihda taustaväri hiiren ollessa päällä */
+    }
+
+    #new-game-btn:focus {
+      outline: none; /* Poista korostus kun nappia klikataan */
+    }
+
+    @keyframes move-animation {
+      0% {
+        left: -1em;
+      }
+      100% {
+        left: 100%;
+      }
+    }
+    #score {
+      font-family: 'Courier New', monospace; /* Tasalevyinen fontti, esim. Courier New */
+      margin-bottom: 1em; /* 1em marginaali alareunaan */
+    }
+  </style>
+</head>
+<body>
+  <h1>Kirjainpeli</h1>
+  <button id="new-game-btn">Uusi peli</button>
+  <div id="score"></div>
+  <div id="game-area"></div>
+
+  <!-- NOTICE: Lisätty info ja lisenssitiedot. -->
+  <p>Paina näppäintä tai koske kirjainta, ennen kuin se ehtii karkuun!</p>
+  <details style="user-select: text;"><summary style="user-select: none;">Lisenssi</summary>
+  <p>Pelin on tehnyt ChatGPT:n avulla Lauri Kenttä vuonna 2023, ja niin peli kuin lähdekoodikin julkaistaan täysin vapaaseen käyttöön (<a href="https://choosealicense.com/licenses/unlicense/">The Unlicense</a>).</p>
+  </details>
+
+  <script>// NOTICE: Liitetty skripti samaan tiedostoon.
+var gameArea = document.getElementById('game-area');
+var score = 0;
+var disappearanceInterval = 1000; // Katoamisen aikaväli millisekunteina
+var startTime; // Pelin alkamisajankohta
+var letterTimeout;
+
+// Käynnistetään peli
+function startGame() {
+  // Poista vanha ajastus, jos sellainen on olemassa
+  if (letterTimeout) {
+    clearTimeout(letterTimeout);
+  }
+
+  // Alusta pistemäärä ja muut tarvittavat muuttujat
+  score = 0;
+  gameArea.innerHTML = '';
+  startTime = new Date().getTime(); // Tallenna pelin alkamisajankohta
+  disappearanceInterval = 10000; // NOTICE: Asetettu alkuarvo uuden pelin alkaessa.
+  showScore();
+
+  // Aseta ensimmäisen kirjaimen ilmestymisen ajastus
+  letterTimeout = setTimeout(appearNextLetter, 200);
+}
+
+function appearNextLetter() {
+  appearLetter();
+  // Aseta seuraavan kirjaimen ilmestymisen ajastus
+  letterTimeout = setTimeout(appearNextLetter, disappearanceInterval / 10);
+}
+
+function showScore() {
+  var currentTime = new Date().getTime();
+  var elapsedTime = currentTime - startTime;
+  var seconds = Math.floor(elapsedTime / 1000); // Muunna millisekunnit sekunneiksi
+
+  var scoreElement = document.getElementById('score');
+  scoreElement.textContent = score + " pistettä, " + seconds + " sekuntia"; // NOTICE: Muutettu tekstiä.
+}
+
+function addScore(n) {
+  score += n;
+  showScore();
+  updateGameAreaClass(n);
+}
+
+function updateGameAreaClass(n) {
+  var gameArea = document.getElementById('game-area');
+  gameArea.classList.remove('success', 'fail');
+  gameArea.classList.add(n >= 0 ? 'success' : 'fail');
+}
+
+function success(letter) {
+  var currentTime = new Date().getTime();
+  var creationTime = parseInt(letter.getAttribute('data-creation-time'));
+  var elapsedTime = currentTime - creationTime;
+  var percentage = (elapsedTime / disappearanceInterval) * 100;
+
+  if (percentage < 30) {
+    // Pienennä katoamisajan pituutta 10%:lla
+    disappearanceInterval *= 0.9;
+  } else if (percentage > 70) {
+    // Suurenna katoamisajan pituutta 10%:lla
+    disappearanceInterval *= 1.1;
+  }
+
+  letter.remove();
+  // NOTICE: Lisätty pistemäärän muutos.
+  addScore(+1);
+}
+
+function fail(letter) {
+  // Kirjainta ei ole poistettu, tee tarvittavat toimenpiteet
+  letter.remove();
+  // NOTICE: Kopioitu hidastus success-funktion tyyliin.
+  if (disappearanceInterval < 20000) {
+    disappearanceInterval *= 1.1;
+  }
+  // NOTICE: Lisätty pistemäärän muutos.
+  addScore(-1);
+}
+
+// Luo satunnaisen kirjaimen ja lisää sen pelialueelle
+function appearLetter() {
+  var letter = document.createElement('div');
+  letter.textContent = getRandomLetter();
+
+  var randomPercentage = Math.random() * 100;
+
+  if (randomPercentage > 50) {
+    letter.style.bottom = (100 - randomPercentage) + '%';
+  } else {
+    letter.style.top = randomPercentage + '%';
+  }
+
+  // Lisätään data-attribuutti luomisajankohdalle
+  var currentTime = new Date().getTime();
+  letter.setAttribute('data-creation-time', currentTime);
+
+  gameArea.appendChild(letter);
+
+  // NOTICE: Poistettu toinen setTimeout, koska animaation kanssa ei tarvittukaan pyydettyä ekstra-aikaa.
+  letter.style.left = '-1em';
+  letter.style.animation = `move-animation ${disappearanceInterval / 1000}s linear`;
+  setTimeout(function() {
+    if (!letter.parentNode) {
+      // Kirjain on jo poistettu
+    } else {
+      // Kirjain ei ole poistettu, kutsu fail-funktiota
+      fail(letter);
+    }
+  }, disappearanceInterval);
+
+  // Kuunnellaan kirjainten klikkauksia
+  // NOTICE: Laitettu klikkauksen kuuntelu kirjaimelle eikä pelialueelle, ja lisätty myös touch.
+  letter.addEventListener('mousedown', handleClick);
+  letter.addEventListener('touch', handleClick);
+}
+
+// Palauttaa satunnaisen aakkoskirjaimen
+function getRandomLetter() {
+  // NOTICE: Lisätty pienaakkoset ja korjattu eri merkkien painotusta.
+  var letters = 'abcdefghijklmnopqrstuvwxyzåäöABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ' + 'aeghijklmnoprstuvy' + 'aehijklmnoprstuvy' + 'aehijklmnoprstuvy';
+  var randomIndex = Math.floor(Math.random() * letters.length);
+  return letters.charAt(randomIndex);
+}
+
+// Päivittää pistemäärän ja poistaa klikatun kirjaimen
+function handleClick(event) {
+  var clickedLetter = event.target;
+  success(clickedLetter); // NOTICE: Lisätty funktiokutsu.
+}
+
+// Käsittelijä näppäimistön painalluksille
+function handleKeyDown(event) {
+  var pressedKey = event.key.toUpperCase(); // Konvertoi painetun näppäimen isoksi kirjaimeksi
+  var letterDivs = document.querySelectorAll('#game-area > div');
+
+  var foundLetter = false;
+  for (var i = 0; i < letterDivs.length; i++) {
+    var letterDiv = letterDivs[i];
+    var letterText = letterDiv.textContent.toUpperCase(); // Konvertoi kirjaimen sisällön isoksi kirjaimeksi
+    if (letterText === pressedKey) {
+      success(letterDiv);
+      foundLetter = true;
+      break;
+    }
+  }
+
+  if (!foundLetter && isLetter(pressedKey)) {
+    addScore(-1);
+  }
+}
+function isLetter(char) {
+  return typeof char === 'string' && char.length === 1 && /[A-ZÅÄÖ]/i.test(char);
+}
+
+// Kuunnellaan näppäimistön painalluksia
+document.addEventListener('keydown', handleKeyDown);
+
+// Käynnistetään peli
+startGame();
+
+// Uusi peli -nappi.
+document.getElementById('new-game-btn').addEventListener('click', startGame);
+</script>
+</body>
+</html>
